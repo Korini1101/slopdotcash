@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { encodeDeployData } from "viem";
 import {
   baseAwardId,
   buildBindCalldata,
@@ -19,9 +21,18 @@ import {
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const rpcUrl = "http://127.0.0.1:18546";
-const anvil = spawn("anvil", ["--port", "18546", "--silent"], {
-  stdio: "ignore",
-});
+const chainId = BigInt(process.env.EVM_INTEGRATION_CHAIN_ID ?? "31337");
+if (![31337n, 46630n].includes(chainId))
+  throw new Error(
+    "Integration supports local or Robinhood testnet chain identity only",
+  );
+const anvil = spawn(
+  "anvil",
+  ["--port", "18546", "--chain-id", String(chainId), "--silent"],
+  {
+    stdio: "ignore",
+  },
+);
 const owner = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const attester = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 const recipient = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
@@ -99,7 +110,7 @@ try {
     attester,
     delay,
   ]);
-  const id = baseAwardId(31337n, vault, source);
+  const id = baseAwardId(chainId, vault, source);
   await send(token, "mint(address,uint256)", [owner, "110000000"]);
   await send(token, "approve(address,uint256)", [vault, "110000000"]);
   await rpc("eth_sendTransaction", [
@@ -128,7 +139,7 @@ try {
   const runtimeCode = (await rpc("eth_getCode", [vault, "latest"])) as string;
   const config = {
     rpcUrl,
-    chainId: 31337n,
+    chainId,
     vault,
     asset: token,
     owner,
@@ -312,6 +323,265 @@ try {
   await assert.rejects(
     verifyReserve(config, paymentTx, 0, id),
     /Wrong event topics/,
+  );
+  // A separate vault sends only collected fees to the converter. Real Uniswap
+  // bytecode and funded liquidity exercise failure and retry after a real payout.
+  function deployArtifact(path: string, args: unknown[]) {
+    const artifact = JSON.parse(readFileSync(path, "utf8"));
+    const data = encodeDeployData({
+      abi: artifact.abi,
+      bytecode: `0x${artifact.bytecode.replace(/^0x/, "")}`,
+      args,
+    });
+    const receipt = JSON.parse(
+      execFileSync(
+        "cast",
+        [
+          "send",
+          "--rpc-url",
+          rpcUrl,
+          "--unlocked",
+          "--from",
+          owner,
+          "--json",
+          "--create",
+          data,
+        ],
+        { encoding: "utf8" },
+      ),
+    );
+    assert.equal(receipt.status, "0x1");
+    return receipt.contractAddress as string;
+  }
+  function call(to: string, signature: string, args: string[] = []) {
+    return execFileSync(
+      "cast",
+      ["call", to, signature, ...args, "--rpc-url", rpcUrl],
+      { encoding: "utf8" },
+    )
+      .trim()
+      .split(" ")[0];
+  }
+  async function transactionStatus(tx: string) {
+    return (
+      (await rpc("eth_getTransactionReceipt", [tx])) as { status: string }
+    ).status;
+  }
+  const outputToken = deploy("integration/TestDollar.sol:TestDollar");
+  const dexFactory = deployArtifact(
+    "node_modules/@uniswap/v2-core/build/UniswapV2Factory.json",
+    [owner],
+  );
+  const weth = deployArtifact(
+    "node_modules/@uniswap/v2-periphery/build/WETH9.json",
+    [],
+  );
+  const router = deployArtifact(
+    "node_modules/@uniswap/v2-periphery/build/UniswapV2Router02.json",
+    [dexFactory, weth],
+  );
+  const converter = deploy("src/FeeConverter.sol:FeeConverter", [
+    token,
+    outputToken,
+    router,
+    fee,
+    owner,
+  ]);
+  for (const asset of [token, outputToken]) {
+    await send(asset, "mint(address,uint256)", [owner, "1000000000"]);
+    await send(asset, "approve(address,uint256)", [router, "1000000000"]);
+  }
+  const expiry = "18446744073709551615";
+  assert.equal(
+    await transactionStatus(
+      await send(
+        router,
+        "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
+        [
+          token,
+          outputToken,
+          "1000000000",
+          "1000000000",
+          "1000000000",
+          "1000000000",
+          owner,
+          expiry,
+        ],
+      ),
+    ),
+    "0x1",
+  );
+  const retryVault = deploy("src/ProjectEscrow.sol:ProjectEscrow", [
+    projectId,
+    token,
+    owner,
+    owner,
+    converter,
+    attester,
+    "0",
+  ]);
+  await send(token, "approve(address,uint256)", [retryVault, "1000000"]);
+  assert.equal(
+    await transactionStatus(
+      await send(retryVault, "deposit(uint64)", ["1000000"]),
+    ),
+    "0x1",
+  );
+  const retrySource = `0x${"3".padStart(64, "0")}`;
+  const retryAward = baseAwardId(chainId, retryVault, retrySource);
+  await send(retryVault, "commitAward(bytes32,uint64,uint64,bytes32)", [
+    retryAward,
+    "101",
+    "1000000",
+    retrySource,
+  ]);
+  await send(
+    retryVault,
+    "bindDestination(uint64,address,uint64,bytes32,uint64)",
+    ["101", recipient, "0", retrySource, expiry],
+    attester,
+  );
+  const beforeNet = BigInt(
+    call(token, "balanceOf(address)(uint256)", [recipient]),
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(
+        retryVault,
+        "pay(bytes32,uint64)",
+        [retryAward, "1"],
+        recipient,
+      ),
+    ),
+    "0x1",
+  );
+  const paidNet = BigInt(
+    call(token, "balanceOf(address)(uint256)", [recipient]),
+  );
+  assert.equal(paidNet - beforeNet, 980000n);
+  await send(retryVault, "claimFees()", []);
+  assert.equal(
+    call(token, "balanceOf(address)(uint256)", [converter]),
+    "20000",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(
+        converter,
+        "approveConversion(uint256,uint256,uint256)",
+        ["20000", "1000000000000", expiry],
+        recipient,
+      ),
+    ),
+    "0x0",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "approveConversion(uint256,uint256,uint256)", [
+        "20000",
+        "1000000000000",
+        expiry,
+      ]),
+    ),
+    "0x1",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "execute(uint256)", ["1"], recipient),
+    ),
+    "0x0",
+  );
+  assert.equal(call(converter, "pendingOrderId()(uint256)"), "1");
+  assert.equal(
+    call(token, "balanceOf(address)(uint256)", [converter]),
+    "20000",
+  );
+  assert.equal(
+    call(token, "allowance(address,address)(uint256)", [converter, router]),
+    "0",
+  );
+  assert.equal(
+    BigInt(call(token, "balanceOf(address)(uint256)", [recipient])),
+    paidNet,
+  );
+  // An expired quote must retain the exact fee order for a later retry.
+  const latestBlock = await rpc("eth_getBlockByNumber", ["latest", false]);
+  const shortExpiry = BigInt(latestBlock.timestamp) + 60n;
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "requote(uint256,uint256,uint256)", [
+        "1",
+        "15000",
+        shortExpiry.toString(),
+      ]),
+    ),
+    "0x1",
+  );
+  await rpc("evm_setNextBlockTimestamp", [Number(shortExpiry + 1n)]);
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "execute(uint256)", ["1"], recipient),
+    ),
+    "0x0",
+  );
+  assert.equal(call(converter, "pendingOrderId()(uint256)"), "1");
+  assert.equal(
+    call(token, "balanceOf(address)(uint256)", [converter]),
+    "20000",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "requote(uint256,uint256,uint256)", [
+        "1",
+        "15000",
+        expiry,
+      ]),
+    ),
+    "0x1",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "execute(uint256)", ["1"], recipient),
+    ),
+    "0x1",
+  );
+  assert.equal(call(converter, "pendingOrderId()(uint256)"), "0");
+  assert.equal(call(converter, "totalInputConverted()(uint256)"), "20000");
+  const received = BigInt(
+    call(outputToken, "balanceOf(address)(uint256)", [fee]),
+  );
+  assert(received >= 15000n);
+  assert.equal(
+    BigInt(call(converter, "totalUsdcReceived()(uint256)")),
+    received,
+  );
+  assert.equal(
+    call(token, "allowance(address,address)(uint256)", [converter, router]),
+    "0",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(converter, "execute(uint256)", ["1"], recipient),
+    ),
+    "0x0",
+  );
+  assert.equal(
+    await transactionStatus(
+      await send(
+        retryVault,
+        "pay(bytes32,uint64)",
+        [retryAward, "1"],
+        recipient,
+      ),
+    ),
+    "0x0",
+  );
+  assert.equal(
+    BigInt(call(token, "balanceOf(address)(uint256)", [recipient])),
+    paidNet,
+  );
+  console.log(
+    "Fee conversion passed: real Uniswap liquidity, paid contributor, failed swap and expired quote retained, successful retry, exact fee debit/output credit, zero residual approval, payout and swap replay rejected.",
   );
   console.log(
     "Base adapter integration passed: real deployment, vault-bound award, delayed and cancellable binding, payment, fee claim, finalized gating, wrong chain/vault/award/index/delay rejection.",

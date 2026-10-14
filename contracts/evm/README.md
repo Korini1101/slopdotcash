@@ -3,8 +3,9 @@
 This is an immutable escrow implementation for a single project and six-decimal
 USDC. It has no proxy, owner change, token approval, arbitrary call, rescue,
 claim expiry, or award cancellation entry point. An approved award remains
-reserved until it is paid. The owner can cancel only a pending wallet binding. This code has local EVM execution evidence. It has not received
-an independent security review or a public testnet deployment.
+reserved until it is paid. The owner can cancel only a pending wallet binding. This code has local EVM execution evidence. Independent security review and complete public-chain payment acceptance remain
+open. The Robinhood rehearsal below has a deployed test factory; deployment
+alone does not prove a completed payment.
 
 ## Authority and identity
 
@@ -109,8 +110,10 @@ and the compiler pinned in `foundry.toml`. From the repository root:
 forge fmt --root contracts/evm --check
 forge build --root contracts/evm --sizes
 bun contracts/evm/adapter.integration.ts
+EVM_INTEGRATION_CHAIN_ID=46630 bun contracts/evm/adapter.integration.ts
 ```
 
+The Robinhood chain-ID run still uses local Anvil and is not public-chain evidence.
 The integration deploys `integration/TestDollar.sol`, a six-decimal test
 ERC-20. The test token is not Circle USDC; Circle integration, wallet signatures, OAuth, indexer finality,
 and live broadcast require separate public-chain acceptance. The adapter integration
@@ -152,3 +155,74 @@ as build output for the adapter; do not maintain a handwritten second ABI.
 Run the full acceptance scenario with actual test USDC and finalized receipts.
 Independent review, operational signer recovery, and public-chain evidence
 remain launch gates.
+
+## Robinhood testnet rehearsal
+
+`script/DeployRobinhoodTestnet.s.sol:DeployRobinhoodTestnet` accepts only chain
+46630. It deploys the existing six-decimal `TestDollar` fixture and an escrow
+factory using the same reviewed contract code and 48-hour binding delay. This
+fixture allows public minting and blocked-destination simulation; it has no
+financial value and is not Circle USDC or an approved project reward asset.
+Never use it for production funding or evidence of USDC integration.
+
+Use the existing dedicated Base test payer through an external signer, with
+separate test fee and identity-authority destinations. Set
+`ROBINHOOD_TESTNET_RPC_URL`, `TEST_FEE_RECIPIENT`, and `TEST_IDENTITY_AUTHORITY`.
+From `contracts/evm`, simulate first:
+
+```sh
+forge script script/DeployRobinhoodTestnet.s.sol:DeployRobinhoodTestnet \
+  --rpc-url "$ROBINHOOD_TESTNET_RPC_URL" --account slop-test-deployer
+```
+
+Check the network identity and estimated gas against the faucet-funded test
+balance. Only the authorized external test signer may broadcast the reviewed
+simulation. Preserve safe deployment hashes, addresses, role readback and
+finalized receipts. A provider that cannot serve finalized historical state
+cannot qualify the finalized verifier; configure a supported archive endpoint.
+
+This script prepares a test rehearsal, not application activation. The current
+payment registry, wallet bindings and six-decimal escrow policy do not yet
+support the complete Robinhood/project-token PRD. TOK-01–07 and MVP-07b require
+asset-decimal accounting, approved conversion limits, full application integration and
+real testnet acceptance before completion. No production network is enabled.
+
+
+## Project-token fee conversion (TOK-07)
+
+`src/FeeConverter.sol` receives only fees already claimed from a vault. The
+vault pays the contributor first and retains its existing immutable accounting.
+A new vault can use a reviewed converter as its fee recipient. An existing
+vault cannot change its recipient. The public Robinhood test factory above
+uses a test wallet as its fee recipient and is not connected to this converter.
+
+The converter fixes its input asset, USDC output, router, USDC recipient, and
+external quote authority at deployment. The authority approves one exact fee
+amount, positive minimum output, and expiry. Anyone can execute that order.
+Only the authority can replace the quote for the same pending order. Failure
+reverts the swap and keeps the fee available for retry. A retry cannot call the
+vault, pay an award, or deduct another fee. Successful execution checks the
+exact source debit and actual USDC recipient credit, then clears the pending
+order. Router approval is zero outside a successful swap. USDC input uses a
+direct transfer with the same amount and receipt checks.
+
+This is a direct two-token Uniswap V2 route. Other route types need separate
+qualification. There is no withdrawal, recipient change, arbitrary call, or
+Slop signer. The external quote authority controls minimum output; a positive
+minimum alone is not a slippage policy. Deployment requires reviewed token and
+router identities, approved quote limits, gas responsibility, authority and
+recovery arrangements. The contract does not schedule retries or index
+finalized conversion receipts. Those application components remain required.
+
+The local integration deploys the pinned Uniswap V2 factory, pair and router
+code and adds liquidity between two test assets. It pays the contributor,
+claims the fee, rejects an unauthorized quote, forces an unfillable swap,
+expires a replacement quote, retries successfully, and rejects both swap and
+payout replay. It checks exact input, actual output, retained pending fees,
+and zero residual router allowance. This proves contract behavior with local
+test liquidity, not a market route, Circle USDC, or public-chain finality.
+
+As checked on 14 October 2026 UTC, Robinhood is absent from
+[Circle's USDC address list](https://developers.circle.com/stablecoins/usdc-contract-addresses).
+Do not substitute USDG or a test token. A real Robinhood fee route requires
+verified USDC provenance and reviewed liquidity before activation.

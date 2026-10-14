@@ -1,18 +1,18 @@
 # Slop Product Requirements
 
-Date: 6 October 2026. Status: MVP requirements submitted for maintainer adoption; unresolved implementation decisions remain explicit.
+Date: 6 October 2026. Token-reward scope updated: 13 October 2026. Status: MVP requirements submitted for maintainer adoption; unresolved implementation decisions remain explicit.
 
 ## 1 Executive summary
 
 Slop helps people make money shipping open source. Contributors find useful work, use their preferred agent or model, and submit changes in GitHub. Maintainers decide what to accept. Slop records contribution quality, calculates rewards under published rules, and shows evidence of completed payments.
 
-The next MVP turns the current collection of project pages, contribution skills, identity services, and payment tools into one coherent product. A person signs in with GitHub, gets a Slop account, optionally connects X, and manages their payout wallets in Slop. A maintainer connects a repository, publishes contribution rules, configures Slopbot, funds a project vault on Base or Solana, and approves contributor rewards. Anyone can contribute funding under the project's disclosed terms.
+The next MVP turns the current collection of project pages, contribution skills, identity services, and payment tools into one coherent product. A person signs in with GitHub, gets a Slop account, optionally connects X, and manages their payout wallets in Slop. A maintainer connects a repository, publishes contribution rules, configures Slopbot, funds a project vault on Solana, Base, Ethereum, or Robinhood Chain, and approves contributor rewards. Anyone can contribute funding under the project's disclosed terms.
 
 GitHub remains the authority for repository work, acceptance, and public project policy. Slop's backend becomes the authority for account settings, verified social connections, wallet bindings, sessions, notifications, and operational state. Finalized chain evidence establishes deposits, protected awards, fees, withdrawals, and payments. None of these authorities substitutes for another.
 
 The core product outcome is a complete, understandable journey from finding work to receiving a verified payment. A wallet form, points page, vault balance, or bot review alone does not complete that journey.
 
-The MVP includes the current product capabilities, unified accounts, contributor and maintainer onboarding, project discovery, contribution and review skills, optional operated Slopbot, community-project security vetting, points and Slop Score leaderboards, donations, and a complete Base/Solana payout path. Private security bounty programs, Robinhood integrations, Ethereum mainnet settlement, and additional chains are future scope. Existing historical records and read-only integrations remain readable even when their network is outside the new MVP settlement scope.
+The MVP includes the current product capabilities, unified accounts, contributor and maintainer onboarding, project discovery, contribution and review skills, optional operated Slopbot, community-project security vetting, points and Slop Score leaderboards, donations, and a complete Solana/Base/Ethereum/Robinhood Chain payout path with USDC or a reviewed project token. Private security bounty programs and additional chains are future scope. Existing historical records and read-only integrations remain readable even when their network is outside the new MVP settlement scope.
 
 This draft defines target behavior. It does not authorize a release, financial transaction, contract deployment, new fee, or retrospective change to contributor terms.
 
@@ -36,7 +36,7 @@ This draft defines target behavior. It does not authorize a release, financial t
 3. Let maintainers publish a project and manage its lifecycle from one dashboard while retaining GitHub approval authority.
 4. Make available funds, reserved awards, and money actually paid easy to distinguish.
 5. Reduce review effort through optional Slopbot reviews and explicitly delegated closure rules. Keep accepted-work ratification and payment approval with maintainers; apply published penalties through deterministic accounting.
-6. Make Base and Solana behave consistently at the product level, with explicit network differences where users need them.
+6. Make Solana, Base, Ethereum, and Robinhood Chain behave consistently at the product level, with explicit network differences where users need them.
 
 ### Measures
 
@@ -59,7 +59,7 @@ Suggested pilot targets are product targets, not observed performance: at least 
 | GitHub registration | OAuth identity worker and separate points membership session | MVP: one account experience with properly scoped sessions |
 | X connection | OAuth connection, opt-in display, one-time points | MVP: expose within account settings; verify live provider activation |
 | Wallet records | Append-only backend claims; independent Base and Solana lineages | MVP: unified wallet UX, possession/consent rules, recovery, and payout binding |
-| Wallet page | Inspected form validates Solana addresses | MVP: both supported networks and network-specific status |
+| Wallet page | Inspected form validates Solana addresses | MVP: all four supported networks and network-specific status |
 | Contribution skills | General bootstrap plus canonical project contributor/reviewer skills | MVP: discovery without an existing checkout and resumable onboarding |
 | Work selection | GitHub ingestion and bounded eligibility decisions | MVP: explain eligibility and recheck before starting |
 | Slopbot | Advisory protocol and project reviewer skills | MVP: optional GitHub App, participation filters, ignore lists, full guideline review, health status, delegated closure and auditable penalties |
@@ -68,16 +68,16 @@ Suggested pilot targets are product targets, not observed performance: at least 
 | Points | Durable journal, membership, X, contribution and recipient payout points | MVP: explicit setup and maintainer recognition without changing cash scores |
 | Leaderboards | Current project cycles, cumulative score, points standings, archive | MVP: Slop Score by default, points and money-received sorting, issue/PR outcome ratios and negative events |
 | Funding | Direct funding records and Squads/Sablier commitment verification | MVP: third-party vault funding and clearly defined withdrawal rights |
-| Payouts | Deterministic allocations, unsigned Solana or Base plans per project network, finalized or quorum-confirmed verification | MVP: complete Base/Solana reserve, approval, execution, and reconciliation paths |
+| Payouts | Deterministic allocations, unsigned Solana or Base plans per project network, finalized or quorum-confirmed verification | MVP: complete Solana/Base/Ethereum/Robinhood Chain reserve, approval, execution, and reconciliation paths under TOK-01–07 |
 | Private traces | Dedicated R2 storage and scoped metadata/authorization | Retain applicable protocol; do not reuse as a private bounty case system |
 | Security bounty business | No complete private program workflow established by this review | Future: opt-in private programs and 50/50 researcher split |
-| Other networks/products | Existing Ethereum/Bitcoin funding readers and external prize records | Preserve history; new Ethereum settlement and Robinhood are future |
+| Other networks/products | Existing Ethereum/Bitcoin funding readers and external prize records | Preserve history; Ethereum and Robinhood Chain settlement are MVP under TOK-01–07; further networks are future |
 
 The current upstream source uses Score v2. The supplied local instructions describe older diminishing-credit behavior and stricter trace requirements. These must not be combined into a new accidental policy. This PRD preserves the source baseline for analysis and calls for one approved versioned policy before implementation. The requested Slopbot closures, penalties, and security-based project bans are target MVP policy changes. They require versioned protocol and runtime changes before activation; publication of this PRD does not activate them.
 
 ### Explicit exclusions
 
-No token launch, speculative points benefit, paid placement disguised as featuring, contribution submission fee, automatic merging, unrestricted model-selected sanctions, wallet-based login, private-key collection, cross-chain bridge, asset swap, or automatic copyright assignment is required for the MVP.
+No token launch, speculative points benefit, paid placement disguised as featuring, contribution submission fee, automatic merging, unrestricted model-selected sanctions, wallet-based login, private-key collection, cross-chain bridge, contributor-asset swap, or automatic copyright assignment is required for the MVP.
 
 ### MVP first and human-responsible issues
 
@@ -125,11 +125,11 @@ Preserve the existing minimal-storage design: account ID, observed handle, verif
 
 **WAL-01 — Backend ownership of the record.** Store all new account-to-wallet connections through Slop's authenticated API. No GitHub bio, issue, PR, commit, or manually edited manifest is a normal registration path. Legacy records remain historical evidence and require explicit migration provenance; they do not automatically become authorization for a new payout protocol.
 
-One account may have one active destination on Base and one on Solana. A project's settlement network selects the appropriate destination. An EVM address on another network does not establish Base readiness. Show full addresses on confirmation and copy actions, network, token, verification state, and last change time.
+One account may have one active destination per supported network: Solana, Base, Ethereum, and Robinhood Chain. A project's settlement network selects the appropriate destination. An EVM address registered on one network does not establish readiness or consent on another. Show full addresses on confirmation and copy actions, network, token, verification state, and last change time.
 
 **WAL-02 — Proof and consent.** Connecting a wallet provider is not proof by itself. Use a short-lived, single-use signature challenge bound to actor, origin, network, exact destination, purpose, and expiry. The message authorizes payout routing only. It must not request token approval, a transaction, a seed phrase, or a private key. Separately capture agreement to receive awards at that destination.
 
-The MVP initially supports ordinary self-controlled Base and Solana wallets with verified signatures. Contract wallets, multisigs, exchange deposit addresses, and off-curve Solana destinations need an explicit supported proof method or reviewed exception; an unsupported wallet receives a useful explanation and remains ineligible for automatic routing. Preserve historical claims without falsely upgrading their proof level.
+The MVP initially supports ordinary self-controlled Solana, Base, Ethereum, and Robinhood Chain wallets with verified signatures. Contract wallets, multisigs, exchange deposit addresses, and off-curve Solana destinations need an explicit supported proof method or reviewed exception; an unsupported wallet receives a useful explanation and remains ineligible for automatic routing. Preserve historical claims without falsely upgrading their proof level.
 
 **WAL-03 — Changes.** A change appends a successor to the current actor/network lineage. Use compare-and-swap semantics so two concurrent changes cannot create competing current wallets. Require recent GitHub authentication and fresh proof for the new destination. Recommended default: a 24-hour delay for changes affecting unpaid funded awards, with an immediate security freeze option. Show the activation time and affected obligations.
 
@@ -186,7 +186,7 @@ The setup wizard has five resumable steps:
 
 1. Repository and maintainer identity: immutable IDs, integration branch, installation permissions, current license facts, and required community security-vetting status.
 2. Contribution rules: approved scope, contribution guide, supported tasks, required tests, review expectations, attribution, security channel, optional Slopbot, review eligibility, ignored actors, and closure policy.
-3. Rewards: monthly principal cap, optional additive review budget, reward exclusions, settlement network, fee preview, and effective month.
+3. Rewards: monthly principal cap, optional additive review budget, reward exclusions, settlement network, exact reward asset, token-denominated cap, fee preview, and effective month.
 4. Funding: approved vault deployment, funding/refund authority, donation terms, initial funding, and finality.
 5. Review and publish: preview the public page and both skills; create the GitHub policy change; show approval and activation gates.
 
@@ -242,7 +242,7 @@ This is an explicit target change from `protocol/slopbot-v1.md`, which currently
 
 **FND-01 — Funding modes.** Distinguish legacy direct receiving addresses, externally controlled committed instruments, and new Slop-compatible protected vaults. Show the mode and its actual constraints. Only the last may claim contract-enforced reserved awards once the deployed program and authorities are verified. Use “project vault” as the primary label. Do not relabel current funding as escrow or guaranteed funds.
 
-**FND-02 — One network.** Choose Base or Solana before first funding. Use that network's approved USDC asset. Freeze the project network while balances or obligations exist. No automatic bridging, contributor override, or mixed-chain obligation. Keep gas/rent funding separate from USDC contributor principal.
+**FND-02 — One network and asset.** Choose Solana, Base, Ethereum, or Robinhood Chain and one reviewed reward asset before first funding (TOK-01–02). Freeze both while balances or obligations exist. No automatic bridging, contributor override, mixed-asset pool, or mixed-chain obligation. Keep gas/rent funding separate from reward principal. Historical PAY-09 records retain their original USDC and network rules.
 
 **FND-03 — Donation journey.** A visitor chooses Fund project, reviews the network, asset, destination, current balance, applicable fee, withdrawal rights, and project risk. They can donate without a Slop account. Signing occurs in their wallet. Display submitted, pending finality, verified, or failed status with a transaction link. A pasted transaction ID is only a report until verified. Require no public GitHub PR for normal deposit recognition.
 
@@ -254,7 +254,7 @@ For the initial design, reserve donor-class funds for awards before refundable s
 
 If the project closes, donor funds remain restricted while existing obligations settle. The default is no discretionary operator sweep. Any future wind-down transfer to another project requires terms established before deposit and the specified approval; otherwise keep the balance restricted. This is a contract-design requirement missing from the simpler single-sponsor payout proposal.
 
-**FND-05 — Accounting.** Publish deposited USDC, gross awards, free reward funding, reserved net contributor principal, reserved payout fees, contributor-paid principal, platform fees, and refunded sponsor funds separately. Do not add an external commitment, a vault deposit, and its payout into one “funding” total. Record exact integers and provenance; formatted currency is presentation only.
+**FND-05 — Accounting.** Publish deposited reward tokens, gross awards, free reward funding, reserved net contributor principal, reserved payout fees, contributor-paid principal, platform fees, and refunded sponsor funds separately. Do not add an external commitment, a vault deposit, and its payout into one “funding” total. Record exact integers and provenance; formatted currency is presentation only.
 
 ## 12 Payouts and vault architecture
 
@@ -283,7 +283,7 @@ Squads separates proposal, vote, and execution permissions; that is useful gover
 3. A contributor has one wallet claim per network. Only a claim on the cycle network is payable. A row without one stays `unclaimed`, as a missing wallet does today.
 4. A Base plan is an unsigned list of Base mainnet USDC transfers with EIP-681 requests. The source is the recipient of the frozen Base Sablier stream. The 1% fee stays a separate transfer that the creator sends. A Squads basis can only produce a Solana plan; a Base Sablier basis can only produce a Base plan.
 5. `paid` on Base requires the same exact reconciliation as on Solana: the read-only verifier from #470, a 2-of-3 RPC quorum and 12 confirmations prove the source debit and every recipient credit for every intent and the fee. A Base transaction must be confirmed after its plan was created, because an EIP-681 request has no memo.
-6. Slop holds no key and does not sign or broadcast. Ethereum mainnet settlement, Merkle claims and migration of existing cycles stay out of scope.
+6. Slop holds no key and does not sign or broadcast. Ethereum mainnet settlement, project-token rewards, Merkle claims and migration of existing cycles stay out of scope for this legacy PAY-09 path. TOK-01–07 adds a separately versioned MVP path; it does not rewrite this approval.
 
 On the same day the owner chose the Base release policy:
 
@@ -309,13 +309,37 @@ Base uses the same reservation, readiness, release and verification commands as 
 
 **PAY-07.** A token freeze, wrong destination, low gas balance, indexer delay, unavailable RPC, or failed transfer leaves the amount unpaid and reserved. One bad destination must not block all other recipients. Show a human-readable cause and recovery action. No silent retries to a different wallet.
 
-**PAY-08.** Only free refundable sponsor funds can be withdrawn, under the disclosed fee. Reserved contributor principal, reserved fees, and restricted donations remain protected. The contract/program must enforce this rule. A database flag is insufficient. An upgrade key that can override it must be disclosed and reviewed; prefer immutable versioned Base deployments and a narrowly governed, explicitly disclosed Solana upgrade policy.
+**PAY-08.** Only free refundable sponsor funds can be withdrawn, under the disclosed fee. Reserved contributor principal, reserved fees, and restricted donations remain protected. The contract/program must enforce this rule. A database flag is insufficient. An upgrade key that can override it must be disclosed and reviewed; prefer immutable versioned EVM deployments and a narrowly governed, explicitly disclosed Solana upgrade policy.
+
+### Project-token rewards (MVP scope approved 13 October 2026)
+
+The product owner requested this addition after reviewing the Solana and EVM token-reward proposal. This records scope approval only. It does not approve token-specific economics, production activation, or movement of funds. These requirements extend the new MVP path; historical USDC records and PAY-09 remain unchanged.
+
+**TOK-01 — Supported assets and networks.** Projects may reward accepted work in USDC or their own existing fungible token. The initial networks are Solana, Base, Ethereum mainnet, and Robinhood Chain. Support standard Solana SPL tokens and standard EVM ERC-20 tokens. Token-2022 configurations require explicit review and demonstrated compatibility before activation. Sharing the EVM implementation does not activate another chain. Token creation, mint authority, automatic emissions minting, bridges, contributor-principal swaps, native gas-coin rewards, and mixed-token pools are outside this addition.
+
+Robinhood Chain uses the shared EVM payout and ERC-20 verification path, with its own network configuration and acceptance evidence. Official documentation identifies mainnet chain ID `4663` and testnet chain ID `46630`, with ETH for gas. Reverify these values, provider endpoints, explorer links, deployed contracts, and chain-specific finality before activation. Sequencer acceptance alone cannot establish finalized payment. This is chain support; it requires no Robinhood brokerage login or brokerage balance access. [Robinhood Chain overview](https://docs.robinhood.com/chain/), [official network configuration](https://docs.robinhood.com/chain/connecting/).
+
+USDC support on any added network requires verification of the exact available asset, issuer/provenance, transfer behavior, and contract address. Do not assume native USDC exists because a chain is EVM-compatible, substitute a bridged token or another stablecoin silently, or block separately qualified project-token rewards on that assumption.
+
+**TOK-02 — Exact asset identity.** Each project has one settlement network and one reward asset at a time. Store the asset through the canonical D1 project registry and immutable manifest revisions; do not add a separate token-project inventory or hand-edit generated snapshots. Bind the chain ID or cluster, contract or mint address, verified decimals, applicable token program, and reviewed transfer behavior. Symbols and names are display metadata, never identity. Freeze the asset identity and policy revision in every cycle, obligation, funding record, plan, and receipt. A change needs a reviewed successor and cannot reinterpret existing balances or obligations.
+
+**TOK-03 — Token-denominated accounting.** Express budgets, monthly caps, allocations, funding, gross awards, fees, net earnings, and receipts in the chosen token. Use exact integer base units and deterministic largest-remainder allocation; never assume six decimals or use floating-point money. Accepted-work scoring stays unchanged. Token price, nominal reward quantity, trading volume, and model token usage cannot alter merit scores. Show an optional dollar estimate only with its source and observation time; stale or missing pricing cannot alter the token obligation. Keep totals and verified earnings separate by network and asset. LDR-03's USDC money-received sort remains explicitly USDC-only; never sum unlike token quantities or label them dollars.
+
+**TOK-04 — Contributor experience.** Project cards, details, funding, award approval, earnings, and receipts identify the token and network. Let contributors filter USDC and project-token opportunities. Keep GitHub-first onboarding and one shared project workflow. A dedicated token-rewards landing page may reuse this workflow; it is not a separate account or payment system. Before contribution or funding, make the exact reward terms and token restrictions available. Before wallet confirmation, show the network and asset. Never imply a fixed dollar value, guaranteed liquidity, or immediate transferability. Unsupported assets have an explicit unavailable state.
+
+**TOK-05 — Transfer and settlement acceptance.** Verify actual source debits, recipient credits, and fee amounts against the frozen asset identity and approved obligation. A transfer event or successful transaction alone does not prove exact settlement. Initially exclude fee-on-transfer, rebasing, confidential, nontransferable, and custom-hook behavior unless separately reviewed and supported by the complete accounting and verification path. Disclose relevant mint, freeze, pause, upgrade, and transfer authorities; a later incompatibility or freeze must leave affected unsettled awards unpaid with a visible hold reason. Reuse the existing approval, wallet-binding, replay, and reconciliation controls. Slop holds no signing key and does not originate or redirect transfers.
+
+Qualification requires a real end-to-end workflow on each approved test network with explicitly identified test assets: configure a project, fund it, approve registered and walletless awards, execute externally, bind the late wallet, reconcile exact receipts, then retry without duplicate payment. Include assets with decimals other than six, wrong-chain and wrong-asset rejection, a frozen or unsupported token, and an ambiguous-send recovery. Every supported Token-2022 configuration needs the same evidence. Test assets and test transactions are not mainnet payment evidence.
+
+**TOK-06 — Fee and activation decisions.** Preserve all recorded USDC fee policies. The product owner approved a 2% fee deducted from each gross award in the same project token, rounded down once per award, with the net amount shown to the contributor. The platform fee must be converted to USDC immediately on payment (TOK-07); contributor principal stays in the project token. A zero fee after integer rounding needs no swap. Responsible owners must still approve the exact network fee recipient and conversion execution limits. Freeze the adopted policy with each obligation and show gross, fee, and net amounts. Security and protocol owners must approve supported token behavior, network finality, and execution/proof rules before activation. Existing PAY-05 and other unresolved authority gates still apply. Scope approval is not economic or payment authorization.
+
+**TOK-07 — Convert platform fees to USDC.** At payment, convert only the deducted 2% platform fee into verified USDC on the same network. USDC-denominated fees need no swap. Preserve the source fee quantity and record actual USDC received separately; never relabel the source token as dollars. Freeze the fee policy per obligation. Restrict conversion to a reviewed router, exact input asset, verified USDC output and approved fee destination, with bounded token approval, quote expiry and a minimum output. Reject arbitrary calls, unlimited approvals and any route that spends contributor principal or reserved awards. Reconcile finalized fee debits and USDC credits, and prevent duplicate conversion after retries or ambiguous submissions. Unavailable liquidity, an unsupported USDC asset or an expired quote cannot count as conversion success. The product owner approved paying the contributor even if conversion fails. Record the retained fee as pending conversion and retry conversion separately; never repay the award or deduct another fee. A reverted, expired or ambiguous conversion cannot become converted until finalized evidence proves the exact fee debit and USDC credit. Responsible owners must still approve slippage limits, gas responsibility and execution authority. No Slop-held payment key or automatic bridge is authorized. Testnet fixture swaps alone do not prove live liquidity.
 
 ### Accounting example
 
 Under the maintainer-approved 2% deduction, a 100 USDC gross award reserves 100 USDC: 98 net contributor principal and 2 fee. With 1,000 USDC deposited, committing gross awards of 100 and 50 reserves 150 and leaves 850 free. Paying the first releases 98 to the contributor and 2 to Slop; 50 remains reserved for the walletless actor. A later wallet connection pays 49 to that contributor and its 1 fee once. The 850 is refundable only to the extent it is sponsor-class money. Donation-class funds remain reward-restricted. Show gross award, fee and net contributor amount separately; contributor earnings use the net amount. Existing obligations retain their recorded fee policy.
 
-Fee calculations use integer micro-USDC and a documented rounding rule frozen per obligation. The proposal recommends one combined principal obligation per actor, project, and cycle, with its fee rounded down once. Splitting execution into transactions cannot reduce that fee or mint a second obligation. Minimum fees or batch-level rounding must not be silently substituted. Test total conservation, tiny amounts, maximum values, and batch retries.
+USDC fee calculations use integer micro-USDC and a documented rounding rule frozen per obligation. Project-token accounting uses that asset's base units; TOK-03 and TOK-06 govern its fee approval and rounding. The proposal recommends one combined principal obligation per actor, project, and cycle, with its fee rounded down once. Splitting execution into transactions cannot reduce that fee or mint a second obligation. Minimum fees or batch-level rounding must not be silently substituted. Test total conservation, tiny amounts, maximum values, and batch retries.
 
 ## 13 Maintainer eligibility and abuse controls
 
@@ -454,7 +478,7 @@ This inventory covers the routes in inspected upstream `src/App.tsx` and related
 | `/contributors/:login` | Public work, points, X and payment history | Stable actor profile with Slop Score, Points, money received, PR/issue ratios and penalty/reversal history; private settings separate |
 | `/points` | Sign-in, recognition rules, standings, social connection, community | Compatibility entry to leaderboard rules; move setup to Account and people to shared discovery; preserve old fragments |
 | `/login` | GitHub membership login | Clear account creation/login, safe return destination, cancel/retry without losing draft |
-| `/wallet` | Solana registration flow | Compatibility route into Account Wallets, with Base/Solana and pending-change state |
+| `/wallet` | Solana registration flow | Compatibility route into Account Wallets, with Solana/Base/Ethereum/Robinhood Chain and pending-change state |
 | `/cycles` | Cycle archive | Filter by project/month/state; explicit complete coverage and downloadable records |
 | `/cycles/:project/:month` | Allocation and settlement artifacts | Explain amounts, review deadline, approvals, reserves, individual payment progress, appeals |
 | `/sponsors` | Funding explanation and project information | Explain fund-a-project options, rights, fees, verified impact, and direct project entry |
@@ -507,7 +531,7 @@ Acceptance: The first useful viewport answers identity and contribution totals. 
 
 Acceptance: Old `/points` and fragment links reach the correct account, people or rules destination. Settings have saved and error feedback. Points remain nonfinancial.
 
-**UX-07 — Login and wallets.** Use one login title and GitHub action. Defer optional setup. Keep the safe return route and draft. Present address, confirmation and saved states within Account Wallets for Base and Solana. Put public-registration consequences before confirmation. Move digests to details.
+**UX-07 — Login and wallets.** Use one login title and GitHub action. Defer optional setup. Keep the safe return route and draft. Present address, confirmation and saved states within Account Wallets for Solana, Base, Ethereum, and Robinhood Chain. Put public-registration consequences before confirmation. Move digests to details.
 
 Acceptance: Real login and wallet workflows retain consent, identity checks, network validation and recovery. No new login provider or unsupported wallet capability appears.
 
@@ -682,7 +706,7 @@ Collection risk is explicit. An unfunded third-party promise is not an earned ca
 
 GitHub private vulnerability reporting may provide an integration path, but it must be enabled and its actual permissions and API capabilities tested. A `SECURITY.md` file alone does not establish an available private intake. [GitHub private reporting](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/report-privately)
 
-Robinhood remains a separate future discovery item: clarify whether the intended product is a wallet, chain, payment, or brokerage integration before defining requirements. Ethereum mainnet and other networks must pass the same accounting, authority, fee, finality, and end-to-end conformance gates before activation.
+Robinhood means Robinhood Chain, the EVM-compatible network. Payouts and project-token rewards on Robinhood Chain and Ethereum mainnet are MVP scope under TOK-01–07. Brokerage-account and trading integrations are not part of this chain support. Further EVM networks remain future scope and require a separate approval plus the same accounting, authority, fee, finality, and end-to-end conformance gates.
 
 ## 20 Risks and mitigation
 
@@ -716,10 +740,10 @@ The legal review item is a launch dependency, not a conclusion about Slop's lega
 | Phase | Deliverable | Exit condition |
 | --- | --- | --- |
 | 0 Policy consolidation | Approved PRD and MVP plan; resolve source conflicts, fees, exclusions, donation rights, authority and release policy | Requirement IDs and decision log approved; no contradictory promises |
-| 1 Unified identity | Account, optional X, both-chain wallets, private earnings shell, migration | Real OAuth and wallet proof/recovery flow on isolated staging |
+| 1 Unified identity | Account, optional X, wallets on all supported networks, private earnings shell, migration | Real OAuth and wallet proof/recovery flow on isolated staging |
 | 2 Project and skill onboarding | Resumable project setup, policy updates, discovery skill, canonical artifacts | Maintainer and contributor complete real repository workflows |
 | 3 Slopbot and security admission | Optional bot, participation filters, delegated closure, VM vetting, Astra/Opus scans, artifact quarantine and bans | Review/skip matrix, exact-revision decisions, negative-event reversals and malicious/clean fixture qualification |
-| 4 Financial vertical slice | Base and Solana vaults, funding classes, approvals, walletless reserves, dispatch, fees and reconciliation | Same complete funded-award scenario passes on both supported test environments |
+| 4 Financial vertical slice | Solana/Base/Ethereum/Robinhood Chain vaults, reviewed reward assets, funding classes, approvals, walletless reserves, dispatch, fees and reconciliation | Same complete funded-award scenario passes on all four supported test environments; TOK-05 adds project-token evidence |
 | 5 Product presentation | Homepage, dashboards, points, leaderboards, notifications, support and appeals | Accessible desktop/mobile acceptance with correct metrics and failure states |
 | 6 Controlled production activation | Audited contracts, operational authority, deployed-byte verification, limited funded pilot | Actual authorized mainnet evidence and reconciliation before broader enablement |
 
@@ -730,7 +754,7 @@ This is an order of dependencies, not a calendar estimate. Contract work can inf
 | Requirement group | Required real workflow and evidence |
 | --- | --- |
 | ACC/SOC | New GitHub user, returning user, rename, denied/expired OAuth, logout/revocation, X connect/disconnect/conflict and private visibility |
-| WAL | Base and Solana signatures, wrong network, replayed challenge, concurrent change, delayed activation, compromised-account hold and unsupported wallet |
+| WAL | Solana, Base, Ethereum, and Robinhood Chain signatures, wrong network, replayed challenge, concurrent change, delayed activation, compromised-account hold and unsupported wallet |
 | SKL | Start outside a repo, choose project, verify/install skill, select live eligible work, submit a real bounded contribution with required evidence |
 | PRJ | Install App, verify authority, save/resume draft, publish reviewed manifest/skills, lose permission, change rules prospectively |
 | BOT | Optional disabled/degraded/ready states; marker/member/external/ignore truth table; full policy inputs; real PR and issue revisions; confirmed closure, failed closure, retries and uninstall |
@@ -744,7 +768,7 @@ This is an order of dependencies, not a calendar estimate. Contract work can inf
 
 On each supported test deployment, fund 1,000 test USDC; approve 100 for a registered actor and 50 for a walletless actor; reserve 150 under the approved deducted fee; pay 98 net plus 2 fee for the first award; register the second actor and pay 49 net plus 1 fee; replay dispatch and prove no duplicate payment. Separately add donor-class funds and prove they cannot be refunded. Rebuild the projection and prove all balances, principal, fees, obligations, and receipts match. Exercise manual mode against the same exact-once controls.
 
-Use Base Sepolia and the approved Solana application test cluster with explicitly identified test assets. Testnet assets are not real funds or production evidence. Carry the detailed contract and deployment acceptance work from the Base/Solana architecture proposal into the implementation plan after reconciling donation and fee policy.
+Use Base Sepolia, Ethereum Sepolia, Robinhood Chain Testnet, and the approved Solana application test cluster with explicitly identified test assets. Testnet assets are not real funds or production evidence. Carry the detailed contract and deployment acceptance work from the Base/Solana architecture proposal into the implementation plan after reconciling donation and fee policy.
 
 For implementation, retain all required repository checks, lockfile/toolchain pinning, current-base rebase, exact-head browser evidence, and protected release workflow. UI PRs require uploaded walkthrough and evidence videos. Verify production website, API migrations, contract/program deployment, DNS/TLS/headers, and actual payment independently. Documentation drafting does not establish any of those results.
 
@@ -768,6 +792,8 @@ served files. Issue #534 tracks this approved operational change.
 | Trace and score conflicts | Reconcile local instructions with upstream protocols; publish one effective rule | Maintainers and protocol owner |
 | Payout execution authority | No Slop-held key originates, routes or redirects a payment: project-operated or permissionless execution; actor-binding proof and recovery authority remain blocked under PAY-05; a wallet signature alone is insufficient; counsel review before any change | Security, financial-protocol and legal owners |
 | Monthly-pool settlement network | **Approved 8 October 2026 (RFC #472):** one network per project in `reward.chain`, Solana or Base; frozen per cycle; fee is a separate transfer on the same network. Base release: one `recipient` signer bound by `recipientGithub` with EIP-191 proof, EOA only; quorum finalized recipient balance covers principal plus fee on a non-cancelable, uncanceled stream; reservation is bookkeeping once funds are withdrawn; Base fee recipient `0xb7b0d5e45016d6d31629d9ab375df770fd2aaf77` (PAY-09) | Repository owner |
+| Project-token scope | **Approved 13 October 2026 in the product-owner conversation:** TOK-01–07; Solana, Base, Ethereum, and Robinhood Chain; one reviewed asset per project; token-denominated rewards and shared discovery | Product owner; implementation and activation evidence still required |
+| Project-token economics and activation | 2% same-token deduction and immediate fee conversion to USDC approved by the product owner; conversion failure must not block contributor payment and the fee is retried separately; approve exact destination, swap limits, supported token behavior, network finality and execution authority under TOK-06/07 | Product, finance, security and protocol owners |
 | Payout fee | Maintainer-approved 2% deduction from new gross awards; show net contributor earnings, reserve gross as net principal plus fee, charge once and freeze per obligation; preserve legacy policy | Product and finance owners |
 | Withdrawal fee | 10% remains a proposal; validate sponsor demand and retain clear net-refund preview | Product and finance owners |
 | Public donation rights | Nonrefundable reward-restricted class, contract-enforced | Product, protocol and legal owners |
@@ -782,7 +808,7 @@ served files. Issue #534 tracks this approved operational change.
 | Privacy and retention | Field-level inventory, public wallet compatibility, closure/recovery policy | Privacy and backend owners |
 | Deployment branch policy | Resolve open staging/production proposal before implementation release work | Release owner |
 | Security bounty terms | Future only; funded 50/50 split, safe harbor, privacy and appeals | Security-program, finance and legal owners |
-| Robinhood meaning | Define the intended integration before estimating | Product owner |
+| Robinhood Chain | **Approved 13 October 2026 in the product-owner conversation:** add Robinhood Chain to MVP payouts and project-token rewards through the shared EVM path; network-specific qualification remains required | Product owner; security and protocol owners qualify activation |
 
 No unresolved decision in this table is permission for an agent to invent a new economic rule. The drafting can complete now; implementation must bind to the approved choices.
 

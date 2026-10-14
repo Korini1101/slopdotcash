@@ -3,6 +3,12 @@ import { pathToFileURL } from "node:url";
 import { isFundingAddress } from "../src/lib/funding-address.mjs";
 
 const NETWORKS = Object.freeze({
+  "robinhood-testnet": {
+    chain: "ethereum",
+    rpc: "https://rpc.testnet.chain.robinhood.com",
+    identity: "0xb626",
+    unit: "wei",
+  },
   "base-sepolia": {
     chain: "base",
     rpc: "https://sepolia.base.org",
@@ -26,11 +32,13 @@ const NETWORKS = Object.freeze({
 export async function checkTestFunding(network, address, endpoint) {
   const config = NETWORKS[network];
   if (!config)
-    throw new Error("Expected base-sepolia, solana-devnet, or solana-testnet");
+    throw new Error(
+      "Expected robinhood-testnet, base-sepolia, solana-devnet, or solana-testnet",
+    );
   if (
     !isFundingAddress(
       config.chain,
-      config.chain === "base" && typeof address === "string"
+      config.chain !== "solana" && typeof address === "string"
         ? address.toLowerCase()
         : address,
     )
@@ -65,13 +73,13 @@ export async function checkTestFunding(network, address, endpoint) {
     return body.result;
   }
   const identity = await rpc(
-    config.chain === "base" ? "eth_chainId" : "getGenesisHash",
+    config.chain !== "solana" ? "eth_chainId" : "getGenesisHash",
   );
   if (identity !== config.identity)
     throw new Error("RPC network identity mismatch");
   let amount;
   let block;
-  if (config.chain === "base") {
+  if (config.chain !== "solana") {
     const finalized = await rpc("eth_getBlockByNumber", ["finalized", false]);
     if (
       !finalized ||
