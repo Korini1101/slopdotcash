@@ -437,6 +437,8 @@ try {
     `bind:${bindingAttempt.id}`,
   );
   assert(rejectedBinding);
+  // RPC submission can return before Anvil mines the rejected transaction.
+  await rpc("anvil_mine", ["0x1"]);
   const rejectedReceipt = (await rpc("eth_getTransactionReceipt", [
     rejectedBinding.transactionId,
   ])) as { status: string };
